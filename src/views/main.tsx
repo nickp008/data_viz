@@ -3,12 +3,13 @@ import { handleFetchData } from "../api/data";
 import { useData } from '../hooks/usePlotData'
 import { useDataFiles} from "../store/dataStore";
 import DataSelection from "../components/dataselection";
+import { createView } from "../data/duckdb/create/views";
 
 
  
 const MainView: FunctionComponent = () => {
     const [count, setCount] = useState(0)
-    const { data, isLoading, error, isSuccess } = useData("spar2.parquet")
+    const { data, isLoading, error, isSuccess } = useData(["spar2.parquet", "spar1.parquet", "test.parquet"])
     // const [dataFileInfo, addDataFile, removeDatafile] = usePlotConfig((state)=>[state.title, state.])
     const tables = useDataFiles((state)=>state.tables)
     const addTable = useDataFiles((state)=>state.addTable)
@@ -17,7 +18,9 @@ const MainView: FunctionComponent = () => {
     useEffect(()=>{
         if (isSuccess && data) {
             console.log("ADDING TABLE TO STORE...")
-            addTable(data)
+            for (const table of data) {
+                addTable(table)
+            }
         }
     },[isSuccess, data, addTable])
     // const [tables, addTable, removeTable] = useDataFiles((state)=> [state.tables, state.addTable, state.removeTable])
@@ -35,10 +38,13 @@ const MainView: FunctionComponent = () => {
             <button onClick={()=>{
             handleFetchData("test.parquet")
             }}>
+            
             Click to stream data.
             </button>
-            <button onClick={()=>{
-                addTable(data!)
+            <button onClick={async ()=>{
+                const view = await createView(['spar1', 'spar2'], ['fileName'], 'JoinedVIEW')
+                console.log("HERES MY VIEW:::", view)
+                addTable(view!)
             }}>
                 Add table info to store...
             </button>

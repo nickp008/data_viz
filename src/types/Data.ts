@@ -16,5 +16,4 @@ export type Data = {
 export type DataOptions = {
     addTable: (tableData: DataTable)=>void,
     removeTable: (tableName: string)=>void,
-
 }

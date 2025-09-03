@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query"
-import { handleFetchData } from "../api/data"
+import { handleFetchData, handleFetchDataFiles } from "../api/data"
 import { useEffect } from "react"
 import { useDataFiles } from "../store/dataStore"
 
 
 
 
-export function useData(fileID: string) {
+export function useData(fileIDs: string[]) {
     const query =  useQuery({
-        queryKey: ["fileID", fileID],
-        queryFn: ({queryKey}) => handleFetchData(queryKey[1]),
+        queryKey: ["fileID", fileIDs],
+        queryFn: ({queryKey}) => handleFetchDataFiles(queryKey[1] as string[]),
     })
     return query
 }

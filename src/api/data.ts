@@ -1,5 +1,7 @@
+import type { DuckDBConnection } from '@duckdb/duckdb-wasm/blocking'
 import { ddb } from '../data/duckdb/ddb'
 import type { DataTable } from '../types/Data'
+import type { AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
 const url = "http://localhost:5000/data"
 const DATA_FORMATS = ['parquet', 'csv']
 
@@ -74,26 +76,19 @@ export async function fetchDataFile(fileId: string) {
 // return parseData(result)
 // // storeEncryptedData(db, id, result, key)
 // }
+export async function handleFetchDataFiles(fileIds: string[]){
+  const promises = []
+  for (const fileId of fileIds) {
+    promises.push(handleFetchData(fileId))
+  }
+  const result = await Promise.all(promises)
+  return result
+}
 
-export async function handleFetchData(fileId: string): Promise<DataTable> {
-  const [ fileName, extension ] = fileId.split('.')
-  if (!DATA_FORMATS.includes(extension)) throw "Error, invalid data type";
-  console.log("FILE ID:::", fileId)
-  const data = await fetchDataFile(fileId)
-  const arr = new Uint8Array(data)
-  ddb.registerFileBuffer(`${fileId}`, arr)
-  const conn = await ddb.connect()
-  try {
-    conn.query(`CREATE TABLE ${fileName} AS 
-      SELECT * FROM '${fileId}'`)
-    } catch {
-      conn.query(`DROP TABLE ${fileName}`)
-      conn.query(`CREATE TABLE ${fileName} AS 
-        SELECT * FROM '${fileName}.buffer'`)
-    }
-    // queryColumnData('Col1')
-  const table_info = await conn.query(`PRAGMA table_info('${fileName}')`);
+export async function getColumns(conn: AsyncDuckDBConnection, tableName: string) {
+const table_info = await conn.query(`PRAGMA table_info('${tableName}')`);
   // console.table("TABLE INFO", info.schema.fields.join(","));
+  console.log("HERE IS THE RESULT!")
   console.log("SCHEMA NAMES", table_info.schema.names)
   // setColNames(table_info.schema.)
   const _colNames = []
@@ -102,5 +97,29 @@ export async function handleFetchData(fileId: string): Promise<DataTable> {
       _colNames.push(col.name)
   }
   console.log("COL NAMES!!!", _colNames)
+  return _colNames
+}
+
+export async function handleFetchData(fileId: string): Promise<DataTable> {
+  const [ fileName, extension ] = fileId.split('.')
+
+  if (!DATA_FORMATS.includes(extension)) throw "Error, invalid data type";
+  console.log("FILE ID:::", fileId)
+  const data = await fetchDataFile(fileId)
+  const arr = new Uint8Array(data)
+  ddb.registerFileBuffer(`dobis`, arr)
+  const conn = await ddb.connect()
+  console.log("REgistered??")
+  // try {
+    conn.query(`CREATE OR REPLACE TABLE ${fileName} AS 
+      SELECT * FROM parquet_scan('dobis')`)
+    // } catch {
+      // conn.query(`DROP TABLE ${fileName}`)
+      // conn.query(`CREATE TABLE dobis AS 
+        // SELECT * FROM parquet_scan('dobis')`)
+    // }
+    // queryColumnData('Col1')
+  console.log("ALready added table...")
+  const _colNames = await getColumns(conn, fileName)
   return {tableName: fileName, columns: _colNames, numRows: 10}
 }
