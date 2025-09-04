@@ -1,5 +1,5 @@
 import { useEffect, useState, type FunctionComponent } from "react";
-import { handleFetchData } from "../api/data";
+import { handleFetchData, handleLoadLocalFiles } from "../api/data";
 import { useData } from '../hooks/usePlotData'
 import { useDataFiles} from "../store/dataStore";
 import DataSelection from "../components/dataselection";
@@ -53,6 +53,7 @@ const MainView: FunctionComponent = () => {
             }}>
                 Force re-render...
             </button>
+            <input type="file" accept=".parquet, .csv" onChange={(e)=>{handleLoadLocalFiles(e.target.files!)}}/>
         </div>
     </> );
 }

@@ -1,7 +1,6 @@
-import type { DuckDBConnection } from '@duckdb/duckdb-wasm/blocking'
 import { ddb } from '../data/duckdb/ddb'
 import type { DataTable } from '../types/Data'
-import type { AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
+import { DuckDBDataProtocol, type AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
 const url = "http://localhost:5000/data"
 const DATA_FORMATS = ['parquet', 'csv']
 
@@ -43,50 +42,57 @@ export async function fetchDataFile(fileId: string) {
     const bytes = await response.arrayBuffer()
     return bytes
 }
-// export async function fetchData(url: string) {
-//     console.log("Fetching data non-streaming...")
-//     // const decoder = new TextDecoder('utf-8')
-//     const response = await fetch(url)
-//     const data = await response.arrayBuffer()
-//     // const data = await response.bytes()
-//     // const utf8Bytes = new Uint8Array(data.size);
-//     // for (let i = 0; i < data.size; i++) {
-//     //     utf8Bytes[i] = ;
-//     // }
-//     // console.log("DATA:::", data)
-//     // console.log(decoder.decode(utf8Bytes))
-//     return data
-// }
 
+async function loadRemoteParquet(fileName: string) {
+  const fileUrl = `${url}?file=${fileName}`
+  await ddb.registerFileURL(fileName, fileUrl, DuckDBDataProtocol.HTTP, false)
+  const conn = await ddb.connect()
+  // const result = (await conn.query(`SELECT * from '${fileUrl}';`)).toArray()
+  // for (const row of result) {
+  //   console.log("ROW:::", row.toJSON())
+  // }
+  const _colNames = await getColumns(conn, fileName)
+  return {tableName: fileName, columns: _colNames, numRows: 10}
 
-// export async function handleFetchDataStream(url: string) {
-// console.log("ABOUT TO HANDLE FETCH DATA STREAM")
-// const data: Uint8Array[] =  []
-// for await (const chunk of fetchDataStream(url)) {
-//     data.push(chunk)
-// }
-// const totalLength = data.reduce((sum, arr)=> sum+arr.length, 0);
-// const result = new Uint8Array(totalLength);
-// let offset = 0
-// for (const arr of data){
-//     result.set(arr, offset);
-//     offset += arr.length
-// }
+}
+async function loadLocalParquet(file: File) {
+  await ddb.registerFileHandle(file.name, file, DuckDBDataProtocol.BROWSER_FILEREADER, false)
+  const conn = await ddb.connect()
+  const _colNames = await getColumns(conn, file.name)
+  return {tableName: file.name, columns: _colNames, numRows: 10}
 
-// return parseData(result)
-// // storeEncryptedData(db, id, result, key)
-// }
+}
+async function loadLocalCSV(file: File) {
+  await ddb.registerFileHandle(file.name, file, DuckDBDataProtocol.BROWSER_FILEREADER, false)
+  const conn = await ddb.connect()
+  const _colNames = await getColumns(conn, file.name)
+  return {tableName: file.name, columns: _colNames, numRows: 10}
+
+}
+
 export async function handleFetchDataFiles(fileIds: string[]){
   const promises = []
   for (const fileId of fileIds) {
-    promises.push(handleFetchData(fileId))
+    promises.push(loadRemoteParquet(fileId))
+  }
+  const result = await Promise.all(promises)
+  return result
+}
+export async function handleLoadLocalFiles(files: FileList){
+  const promises = []
+  for (const fileId of files) {
+    if (fileId.type === 'csv/text') {
+      promises.push(loadLocalCSV(fileId))
+    }
+    promises.push(loadLocalParquet(fileId))
   }
   const result = await Promise.all(promises)
   return result
 }
 
 export async function getColumns(conn: AsyncDuckDBConnection, tableName: string) {
-const table_info = await conn.query(`PRAGMA table_info('${tableName}')`);
+// const table_info = await conn.query(`PRAGMA table_info('${tableName}')`);
+const table_info = await conn.query(`SELECT * from  parquet_schema('${tableName}')`);
   // console.table("TABLE INFO", info.schema.fields.join(","));
   console.log("HERE IS THE RESULT!")
   console.log("SCHEMA NAMES", table_info.schema.names)
