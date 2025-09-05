@@ -10,3 +10,8 @@ import { ddb } from "../ddb";
     
   }
 
+export async function getTablePreview(tableName: string): Promise<{[key:string]: string| number}[]> {
+  const conn = await ddb.connect()
+  const res = (await conn.query(`SELECT * from ${tableName} limit 100;`)).toArray()
+  return res.map((row, index)=>row.toJSON())
+}
